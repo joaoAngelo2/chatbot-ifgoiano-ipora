@@ -1,0 +1,17 @@
+{
+  "name": "bot_whatsapp",
+  "type": "module",
+  "dependencies": {
+    "@google/genai": "^2.6.0",
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^7.0.0-rc11",
+    "cheerio": "^1.2.0",
+    "chroma": "^0.0.1",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.0",
+    "mysql2": "^3.22.3",
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
