@@ -1,8 +1,8 @@
 import * as cheerio from 'cheerio';
 import {gerarEmbedding} from './src/ai/Ai.js';
-import {inserir, selecionarNoticia} from './src/database/Database.js';
 import {notificaTodos} from './src/bot/Bot.js';
 import Noticia from './src/models/Noticia.js';
+import { inserir, selecionarNoticia, selecionarUsuarios } from './src/database/Database.js';
 
 //alimenta o banco de dados com as notícias das últimas 10 páginas do IFGoiano Campus Iporá (100 notícias)
 
@@ -56,7 +56,7 @@ export async function atualizarNoticiaDiaria(){
         if(await selecionarNoticia(title) === null){
             const embedding = await gerarEmbedding(noticia);
             const novaNoticia = new Noticia(title, link, noticia, data, embedding);
-            const usuarios = selecionarUsuarios();
+            const usuarios = await selecionarUsuarios();
             notificaTodos(usuarios, `*${title}\n${noticia}\n\nDisponível em: www.ifgoiano.com${link}`)
             await inserir(novaNoticia);
 

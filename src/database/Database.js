@@ -13,6 +13,9 @@ const pool = mysql.createPool({
   queueLimit: 0
 })
 
+// Threshold mínimo de similaridade: abaixo disso, a notícia não é considerada relevante
+const SIMILARITY_THRESHOLD = 0.75
+
 function parseEmbedding(valor) {
   if (Array.isArray(valor)) return valor
   const str = String(valor).trim()
@@ -70,19 +73,21 @@ export async function selecionarNoticias(pergunta) {
   const embeddingPergunta = await gerarEmbedding(pergunta)
   const [rows] = await pool.query('SELECT titulo, link, noticia, data_noticia, embedding FROM noticias')
 
-  const noticias = rows.map(row => new Noticia(
-    row.titulo,
-    row.link,
-    row.noticia,
-    row.data_noticia,
-    parseEmbedding(row.embedding)
-  ))
+  const noticias = rows.map(row => ({
+    noticia: new Noticia(
+      row.titulo,
+      row.link,
+      row.noticia,
+      row.data_noticia,
+      parseEmbedding(row.embedding)
+    ),
+    similaridade: calcularSimilaridade(embeddingPergunta, parseEmbedding(row.embedding))
+  }))
 
-  noticias.sort((a, b) => {
-    const simA = calcularSimilaridade(embeddingPergunta, a.embedding)
-    const simB = calcularSimilaridade(embeddingPergunta, b.embedding)
-    return simB - simA
-  })
+  const relevantes = noticias
+    .filter(item => item.similaridade >= SIMILARITY_THRESHOLD)
+    .sort((a, b) => b.similaridade - a.similaridade)
+    .map(item => item.noticia)
 
-  return noticias
+  return relevantes
 }

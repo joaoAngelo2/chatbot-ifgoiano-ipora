@@ -2,26 +2,41 @@ import dotenv from 'dotenv'
 import { GoogleGenAI } from '@google/genai'
 
 dotenv.config()
+const hoje = new Date();
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 const GROQ_API_KEY = process.env.GROQ_API_KEY
 const GROQ_LLM_MODEL = 'openai/gpt-oss-120b'
 
-export async function responderPergunta(contexto, pergunta, link, data) {
-  const prompt = `Voce e um assistente virtual do IFGoiano Campus Ipora no WhatsApp.
+
+
+export async function responderPergunta(contexto, historico, link, dataPublicacao) {
+  const systemPrompt = `Voce e um assistente virtual do IFGoiano Campus Ipora no WhatsApp.
 Seu objetivo e ajudar estudantes a entenderem noticias e comunicados do campus de forma simples, sem precisarem navegar pelo site oficial.
 Com base na noticia abaixo, responda a pergunta do estudante de forma clara e amigavel, como se estivesse explicando para um amigo.
 
 Regras:
-- Lembre-se que a data da publicação é ${data}
+- Lembre-se que a data da publicacao e ${dataPublicacao} e a data de hoje e ${hoje.toLocaleDateString('pt-BR')}
+- Verifique os prazos da mensagem e da data de publicacao
 - Escreva como mensagem de WhatsApp: sem tabelas, sem negrito, sem markdown
 - Seja direto, no maximo 3 paragrafos curtos
 - Se a pergunta tiver relacao com a noticia mas voce nao conseguir responde-la, instrua-o a abrir o link https://www.ifgoiano.edu.br${link}
 - Se a pergunta nao tiver relacao com a noticia, responda: "Nao encontrei essa informacao nas noticias que tenho agora. Tente verificar direto no site do IFGoiano ou com a secretaria do campus"
+- Leve em conta o historico da conversa para dar respostas coerentes e contextualizadas
 
-Noticia: ${contexto}
+Noticia disponivel: ${contexto}`
 
-Pergunta do estudante: ${pergunta}`
+  const mensagens = [
+    {
+      role: 'user',
+      content: systemPrompt
+    },
+    {
+      role: 'assistant',
+      content: 'Entendido! Estou pronto para responder as perguntas dos estudantes com base nessa noticia.'
+    },
+    ...historico
+  ]
 
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
@@ -31,7 +46,7 @@ Pergunta do estudante: ${pergunta}`
     },
     body: JSON.stringify({
       model: GROQ_LLM_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+      messages: mensagens,
       max_tokens: 400
     })
   })

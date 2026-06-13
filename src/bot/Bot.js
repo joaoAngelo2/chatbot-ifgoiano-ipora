@@ -10,10 +10,17 @@ import { responderPergunta } from '../ai/Ai.js'
 import { selecionarNoticias, selecionarUsuario, inserirUsuario } from '../database/Database.js'
 import Usuario from '../models/Usuario.js'
 
+let resolveConectado
+export const botConectado = new Promise(resolve => { resolveConectado = resolve })
 let currentQR = null
 let sock = null
 const mensagensProcessadas = new Set()
 const aguardandoConfirmacao = new Set()
+
+// Histórico de conversa por usuário: sender → [{ role, content }, ...]
+const historicoConversa = new Map()
+const MAX_HISTORICO = 6          // últimas 3 trocas (user + assistant)
+const TIMEOUT_HISTORICO = 30 * 60 * 1000  // limpa após 30 min de inatividade
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -91,6 +98,28 @@ function deveIgnorar(msg) {
   return false
 }
 
+// Retorna o histórico atual do usuário e renova o timer de limpeza
+function obterHistorico(sender) {
+  return historicoConversa.get(sender) || []
+}
+
+function salvarHistorico(sender, historico) {
+  // Cancela timer anterior se existir
+  const timerAnterior = historicoConversa.get(`${sender}__timer`)
+  if (timerAnterior) clearTimeout(timerAnterior)
+
+  // Salva histórico limitado
+  historicoConversa.set(sender, historico.slice(-MAX_HISTORICO))
+
+  // Agenda limpeza por inatividade
+  const novoTimer = setTimeout(() => {
+    historicoConversa.delete(sender)
+    historicoConversa.delete(`${sender}__timer`)
+  }, TIMEOUT_HISTORICO)
+
+  historicoConversa.set(`${sender}__timer`, novoTimer)
+}
+
 async function handleConfirmacao(sender, text) {
   const resposta = text.trim()
 
@@ -100,13 +129,20 @@ async function handleConfirmacao(sender, text) {
     await inserirUsuario(novoUsuario)
     aguardandoConfirmacao.delete(sender)
     await sock.sendMessage(sender, {
-      text: 'Cadastro realizado com sucesso.\n\nAgora voce recebera notificacoes do IF Goiano.'
+      text: 'Cadastro realizado com sucesso.\n\nAgora voce recebera notificacoes do IF Goiano. Pode me perguntar qualquer coisa sobre as noticias do campus!'
     })
     return
   }
 
   if (resposta === '2') {
+    const numero = sender.split('@')[0]
+    // CORREÇÃO: cadastra o usuário mesmo sem notificações, para não perguntar sempre
+    const novoUsuario = new Usuario(numero, false)
+    await inserirUsuario(novoUsuario)
     aguardandoConfirmacao.delete(sender)
+    await sock.sendMessage(sender, {
+      text: 'Tudo bem! Pode me perguntar sobre as noticias do IF Goiano Campus Ipora a qualquer momento.'
+    })
     return
   }
 
@@ -147,12 +183,22 @@ async function handleMensagem(msg) {
     return
   }
 
+  // Busca notícias relevantes (já filtradas por threshold)
   const noticias = await selecionarNoticias(text)
   const noticiaRelevante = noticias.length > 0 ? noticias[0] : null
   const contexto = noticiaRelevante ? `${noticiaRelevante.titulo}\n${noticiaRelevante.getTexto()}` : ''
   const link = noticiaRelevante ? noticiaRelevante.getLink() : ''
   const data = noticiaRelevante ? noticiaRelevante.getData() : ''
-  const resposta = await responderPergunta(contexto, text, link, data)
+
+  // Recupera histórico e adiciona a mensagem atual
+  const historico = obterHistorico(sender)
+  historico.push({ role: 'user', content: text })
+
+  const resposta = await responderPergunta(contexto, historico, link, data)
+
+  // Salva a resposta no histórico antes de enviar
+  historico.push({ role: 'assistant', content: resposta })
+  salvarHistorico(sender, historico)
 
   await sock.sendMessage(sender, { text: resposta })
 }
@@ -172,7 +218,10 @@ export async function startBot() {
 
     sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
       if (qr) currentQR = qr
-      if (connection === 'open') currentQR = null
+      if (connection === 'open'){
+         currentQR = null
+         resolveConectado()
+      }
       if (connection === 'close') {
         currentQR = null
         const shouldReconnect =
