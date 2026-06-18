@@ -13,7 +13,6 @@ const pool = mysql.createPool({
   queueLimit: 0
 })
 
-// Threshold mínimo de similaridade: abaixo disso, a notícia não é considerada relevante
 const SIMILARITY_THRESHOLD = 0.75
 
 function parseEmbedding(valor) {

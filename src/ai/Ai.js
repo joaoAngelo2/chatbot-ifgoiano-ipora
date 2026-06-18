@@ -21,7 +21,7 @@ Regras:
 - Escreva como mensagem de WhatsApp: sem tabelas, sem negrito, sem markdown
 - Seja direto, no maximo 3 paragrafos curtos
 - Se a pergunta tiver relacao com a noticia mas voce nao conseguir responde-la, instrua-o a abrir o link https://www.ifgoiano.edu.br${link}
-- Se a pergunta nao tiver relacao com a noticia, responda: "Nao encontrei essa informacao nas noticias que tenho agora. Tente verificar direto no site do IFGoiano ou com a secretaria do campus"
+- Se a pergunta nao tiver relacao com a noticia, responda: "Não encontrei essa informacao nas noticias que tenho agora. Tente verificar direto no site do IFGoiano ou com a secretaria do campus"
 - Leve em conta o historico da conversa para dar respostas coerentes e contextualizadas
 
 Noticia disponivel: ${contexto}`

@@ -136,7 +136,6 @@ async function handleConfirmacao(sender, text) {
 
   if (resposta === '2') {
     const numero = sender.split('@')[0]
-    // CORREÇÃO: cadastra o usuário mesmo sem notificações, para não perguntar sempre
     const novoUsuario = new Usuario(numero, false)
     await inserirUsuario(novoUsuario)
     aguardandoConfirmacao.delete(sender)
